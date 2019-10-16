@@ -750,7 +750,8 @@ func parseBooleanOrNull(l string) (val Object, s string, ok bool) {
 func parseObject(line *string) (Object, error) {
 
 	if noBuf(line) {
-		return nil, errBufNotAvailable
+		// only whitespace returns empty StringLiteral
+		return StringLiteral(""), nil
 	}
 
 	l := *line
@@ -760,8 +761,8 @@ func parseObject(line *string) (Object, error) {
 	// position to first non whitespace char
 	l, _ = trimLeftSpace(l)
 	if len(l) == 0 {
-		// only whitespace
-		return nil, errBufNotAvailable
+		// only whitespace returns empty StringLiteral
+		return StringLiteral(""), nil
 	}
 
 	var value Object
