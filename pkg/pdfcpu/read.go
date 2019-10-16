@@ -1002,7 +1002,7 @@ func headerVersion(rs io.ReadSeeker) (v *Version, eolCount int, err error) {
 		return nil, 0, err
 	}
 
-	buf := make([]byte, 20)
+	buf := make([]byte, 64)
 	if _, err = rs.Read(buf); err != nil {
 		return nil, 0, err
 	}
@@ -1024,14 +1024,19 @@ func headerVersion(rs io.ReadSeeker) (v *Version, eolCount int, err error) {
 
 	// Detect the used eol which should be 1 (0x00, 0x0D) or 2 chars (0x0D0A)long.
 	// %PDF-1.x{whiteSpace}{eol}
-	if s[0] == 0x0A {
-		eolCount = 1
-	} else if s[0] == 0x0D {
-		eolCount = 1
-		if s[9] == 0x0A {
-			eolCount = 2
+	for i := 0; i < len(s); i++ {
+		if s[i] == 0x0A { // LF
+			eolCount = 1
+			break
+		} else if s[i] == 0x0D { // CR
+			eolCount = 1
+			if s[i+1] == 0x0A { // CR+LF
+				eolCount = 2
+			}
+			break
 		}
-	} else {
+	}
+	if eolCount <= 0 {
 		return nil, 0, errCorruptHeader
 	}
 
