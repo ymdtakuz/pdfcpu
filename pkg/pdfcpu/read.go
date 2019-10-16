@@ -1030,7 +1030,7 @@ func headerVersion(rs io.ReadSeeker) (v *Version, eolCount int, err error) {
 			break
 		} else if s[i] == 0x0D { // CR
 			eolCount = 1
-			if s[i+1] == 0x0A { // CR+LF
+			if i < len(s)-1 && s[i+1] == 0x0A { // CR+LF
 				eolCount = 2
 			}
 			break
