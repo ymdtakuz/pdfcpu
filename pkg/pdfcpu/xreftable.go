@@ -742,12 +742,12 @@ func (xRefTable *XRefTable) indRefToObject(ir *IndirectRef) (Object, error) {
 		return nil, nil
 	}
 
-	if entry.Free {
-		return nil, errors.New("pdfcpu: indRefToObject: input argument is free obj")
+	if entry.Object == nil { // if Object is nil, unnecessary to validate entry is free.
+		return nil, nil
 	}
 
-	if entry.Object == nil {
-		return nil, nil
+	if entry.Free {
+		return nil, errors.New("pdfcpu: indRefToObject: input argument is free obj")
 	}
 
 	// return dereferenced object
