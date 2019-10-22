@@ -129,32 +129,34 @@ func hexString(s string) (*string, bool) {
 	}
 
 	uc := strings.ToUpper(s)
+	var out []byte
 
-	for _, c := range uc {
+	for _, c := range []byte(uc) {
 		log.Parse.Printf("checking <%c>\n", c)
-		isHexChar := false
-		for _, hexch := range "ABCDEF1234567890" {
-			log.Parse.Printf("checking against <%c>\n", hexch)
-			if c == hexch {
-				isHexChar = true
-				break
-			}
-		}
-		if !isHexChar {
+		switch {
+		case c >= 0x30 && c <= 0x39: // 0 - 9
+			out = append(out, c)
+		case c >= 0x41 && c <= 0x46: // A - F
+			out = append(out, c)
+		case c == 0x0A || c == 0x0D: // LF or CR
+			continue
+		default:
 			log.Parse.Println("isHexStr returning false")
 			return nil, false
 		}
+		out = append(out, c)
 	}
 
 	log.Parse.Println("isHexStr returning true")
 
 	// If the final digit of a hexadecimal string is missing -
 	// that is, if there is an odd number of digits - the final digit shall be assumed to be 0.
-	if len(uc)%2 == 1 {
-		uc = uc + "0"
+	if len(out)%2 == 1 {
+		out = append(out, 0x30)
 	}
+	so := string(out)
 
-	return &uc, true
+	return &so, true
 }
 
 // balancedParenthesesPrefix returns the index of the end position of the balanced parentheses prefix of s
