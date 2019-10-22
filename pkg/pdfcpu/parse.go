@@ -144,7 +144,6 @@ func hexString(s string) (*string, bool) {
 			log.Parse.Println("isHexStr returning false")
 			return nil, false
 		}
-		out = append(out, c)
 	}
 
 	log.Parse.Println("isHexStr returning true")
