@@ -1624,17 +1624,24 @@ func ParseObject(ctx *Context, offset int64, objNr, genNr int) (Object, error) {
 		return nil, err
 	}
 
+	var maxObjNr int
+	for k := range ctx.Table {
+		if k > maxObjNr {
+			maxObjNr = k
+		}
+	}
+
 	switch o := obj.(type) {
 
 	case Dict:
 		for k, v := range o { // remove invalid IndirectRef
 			switch v := v.(type) {
 			case IndirectRef:
-				if v.ObjectNumber.Value() < 0 || v.ObjectNumber.Value() > *ctx.XRefTable.Size {
+				if v.ObjectNumber.Value() < 0 || v.ObjectNumber.Value() > maxObjNr {
 					delete(o, k)
 				}
 			case *IndirectRef:
-				if v.ObjectNumber.Value() < 0 || v.ObjectNumber.Value() > *ctx.XRefTable.Size {
+				if v.ObjectNumber.Value() < 0 || v.ObjectNumber.Value() > maxObjNr {
 					delete(o, k)
 				}
 			}
@@ -1648,8 +1655,23 @@ func ParseObject(ctx *Context, offset int64, objNr, genNr int) (Object, error) {
 		return streamDictForObject(ctx, o, objNr, streamInd, streamOffset, offset)
 
 	case Array:
+		var a Array
+		for _, v := range o { // remove invalid IndirectRef
+			switch v := v.(type) {
+			case IndirectRef:
+				if v.ObjectNumber.Value() >= 0 && v.ObjectNumber.Value() <= maxObjNr {
+					a = append(a, v)
+				}
+			case *IndirectRef:
+				if v.ObjectNumber.Value() >= 0 && v.ObjectNumber.Value() <= maxObjNr {
+					a = append(a, v)
+				}
+			default:
+				a = append(a, v)
+			}
+		}
 		if ctx.EncKey != nil {
-			if _, err = decryptDeepObject(o, objNr, genNr, ctx.EncKey, ctx.AES4Strings, ctx.E.R); err != nil {
+			if _, err = decryptDeepObject(a, objNr, genNr, ctx.EncKey, ctx.AES4Strings, ctx.E.R); err != nil {
 				return nil, err
 			}
 		}
