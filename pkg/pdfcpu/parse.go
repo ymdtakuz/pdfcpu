@@ -129,18 +129,18 @@ func hexString(s string) (*string, bool) {
 	}
 
 	uc := strings.ToUpper(s)
+	var out []byte
 
-	for _, c := range uc {
+	for _, c := range []byte(uc) {
 		log.Parse.Printf("checking <%c>\n", c)
-		isHexChar := false
-		for _, hexch := range "ABCDEF1234567890" {
-			log.Parse.Printf("checking against <%c>\n", hexch)
-			if c == hexch {
-				isHexChar = true
-				break
-			}
-		}
-		if !isHexChar {
+		switch {
+		case c >= 0x30 && c <= 0x39: // 0 - 9
+			out = append(out, c)
+		case c >= 0x41 && c <= 0x46: // A - F
+			out = append(out, c)
+		case c == 0x0A || c == 0x0D: // LF or CR
+			continue
+		default:
 			log.Parse.Println("isHexStr returning false")
 			return nil, false
 		}
@@ -150,11 +150,12 @@ func hexString(s string) (*string, bool) {
 
 	// If the final digit of a hexadecimal string is missing -
 	// that is, if there is an odd number of digits - the final digit shall be assumed to be 0.
-	if len(uc)%2 == 1 {
-		uc = uc + "0"
+	if len(out)%2 == 1 {
+		out = append(out, 0x30)
 	}
+	so := string(out)
 
-	return &uc, true
+	return &so, true
 }
 
 // balancedParenthesesPrefix returns the index of the end position of the balanced parentheses prefix of s
@@ -315,6 +316,9 @@ func parseArray(line *string) (*Array, error) {
 		obj, err := parseObject(&l)
 		if err != nil {
 			return nil, err
+		}
+		if obj == nil {
+			continue
 		}
 		log.Parse.Printf("ParseArray: new array obj=%v\n", obj)
 		a = append(a, obj)
@@ -610,42 +614,48 @@ func parseNumericOrIndRef(line *string) (Object, error) {
 		str = l[:i1]
 	}
 
+	var ip *int
+	var fp *float64
 	// Try int
-	i, err := strconv.Atoi(str)
-	if err != nil {
-
+	if i, err := strconv.Atoi(str); err != nil {
 		// Try float
 		f, err := strconv.ParseFloat(str, 64)
 		if err != nil {
 			return nil, err
 		}
-
-		// We have a Float!
-		log.Parse.Printf("parseNumericOrIndRef: value is numeric float: %f\n", f)
-		*line = l1
-		return Float(f), nil
+		fp = &f
+	} else {
+		ip = &i
 	}
-
-	// We have an Int!
 
 	// if not followed by whitespace return sole integer value.
 	if i1 <= 0 || delimiter(l[i1]) {
-		log.Parse.Printf("parseNumericOrIndRef: value is numeric int: %d\n", i)
 		*line = l1
-		return Integer(i), nil
+		if fp != nil {
+			log.Parse.Printf("parseNumericOrIndRef: value is numeric float: %d\n", *fp)
+			return Float(*fp), nil
+		}
+		log.Parse.Printf("parseNumericOrIndRef: value is numeric int: %d\n", *ip)
+		return Integer(*ip), nil
 	}
 
 	// Must be indirect reference. (123 0 R)
 	// Missing is the 2nd int and "R".
 
-	iref1 := i
+	iref1 := -1
+	if ip != nil {
+		iref1 = *ip
+	}
 
 	l = l[i1:]
 	l, _ = trimLeftSpace(l)
 	if len(l) == 0 {
 		// only whitespace
 		*line = l1
-		return Integer(i), nil
+		if fp != nil {
+			return Float(*fp), nil
+		}
+		return Integer(*ip), nil
 	}
 
 	i2, _ := positionToNextWhitespaceOrChar(l, "/<([]>")
@@ -653,9 +663,13 @@ func parseNumericOrIndRef(line *string) (Object, error) {
 	// if only 2 token, can't be indirect reference.
 	// if not followed by whitespace return sole integer value.
 	if i2 <= 0 || delimiter(l[i2]) {
-		log.Parse.Printf("parseNumericOrIndRef: 2 objects => value is numeric int: %d\n", i)
 		*line = l1
-		return Integer(i), nil
+		if fp != nil {
+			log.Parse.Printf("parseNumericOrIndRef: 2 objects => value is numeric float: %d\n", *fp)
+			return Float(*fp), nil
+		}
+		log.Parse.Printf("parseNumericOrIndRef: 2 objects => value is numeric int: %d\n", *ip)
+		return Integer(*ip), nil
 	}
 
 	str = l
@@ -667,9 +681,13 @@ func parseNumericOrIndRef(line *string) (Object, error) {
 	if err != nil {
 		// 2nd int(generation number) not available.
 		// Can't be an indirect reference.
-		log.Parse.Printf("parseNumericOrIndRef: 3 objects, 2nd no int, value is no indirect ref but numeric int: %d\n", i)
 		*line = l1
-		return Integer(i), nil
+		if fp != nil {
+			log.Parse.Printf("parseNumericOrIndRef: 3 objects, 2nd no int, value is no indirect ref but numeric float: %d\n", *fp)
+			return Float(*fp), nil
+		}
+		log.Parse.Printf("parseNumericOrIndRef: 3 objects, 2nd no int, value is no indirect ref but numeric int: %d\n", *ip)
+		return Integer(*ip), nil
 	}
 
 	// We have the 2nd int(generation number).
@@ -681,21 +699,31 @@ func parseNumericOrIndRef(line *string) (Object, error) {
 	if len(l) == 0 {
 		// only whitespace
 		l = l1
-		return Integer(i), nil
+		if fp != nil {
+			return Float(*fp), nil
+		}
+		return Integer(*ip), nil
 	}
 
 	if l[0] == 'R' {
 		// We have all 3 components to create an indirect reference.
 		*line = forwardParseBuf(l, 1)
+		if iref1 < 0 {
+			return nil, nil
+		}
 		return *NewIndirectRef(iref1, iref2), nil
 	}
 
 	// 'R' not available.
 	// Can't be an indirect reference.
-	log.Parse.Printf("parseNumericOrIndRef: value is no indirect ref(no 'R') but numeric int: %d\n", i)
 	*line = l1
 
-	return Integer(i), nil
+	if fp != nil {
+		log.Parse.Printf("parseNumericOrIndRef: value is no indirect ref(no 'R') but numeric float: %d\n", *fp)
+		return Float(*fp), nil
+	}
+	log.Parse.Printf("parseNumericOrIndRef: value is no indirect ref(no 'R') but numeric int: %d\n", *ip)
+	return Integer(*ip), nil
 }
 
 func parseHexLiteralOrDict(l *string) (val Object, err error) {

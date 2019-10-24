@@ -1624,9 +1624,28 @@ func ParseObject(ctx *Context, offset int64, objNr, genNr int) (Object, error) {
 		return nil, err
 	}
 
+	var maxObjNr int
+	for k := range ctx.Table {
+		if k > maxObjNr {
+			maxObjNr = k
+		}
+	}
+
 	switch o := obj.(type) {
 
 	case Dict:
+		for k, v := range o { // remove invalid IndirectRef
+			switch v := v.(type) {
+			case IndirectRef:
+				if v.ObjectNumber.Value() < 0 || v.ObjectNumber.Value() > maxObjNr {
+					delete(o, k)
+				}
+			case *IndirectRef:
+				if v.ObjectNumber.Value() < 0 || v.ObjectNumber.Value() > maxObjNr {
+					delete(o, k)
+				}
+			}
+		}
 		d, err := dict(ctx, o, objNr, genNr, endInd, streamInd)
 		if err != nil || d != nil {
 			// Dict
@@ -1636,8 +1655,23 @@ func ParseObject(ctx *Context, offset int64, objNr, genNr int) (Object, error) {
 		return streamDictForObject(ctx, o, objNr, streamInd, streamOffset, offset)
 
 	case Array:
+		var a Array
+		for _, v := range o { // remove invalid IndirectRef
+			switch v := v.(type) {
+			case IndirectRef:
+				if v.ObjectNumber.Value() >= 0 && v.ObjectNumber.Value() <= maxObjNr {
+					a = append(a, v)
+				}
+			case *IndirectRef:
+				if v.ObjectNumber.Value() >= 0 && v.ObjectNumber.Value() <= maxObjNr {
+					a = append(a, v)
+				}
+			default:
+				a = append(a, v)
+			}
+		}
 		if ctx.EncKey != nil {
-			if _, err = decryptDeepObject(o, objNr, genNr, ctx.EncKey, ctx.AES4Strings, ctx.E.R); err != nil {
+			if _, err = decryptDeepObject(a, objNr, genNr, ctx.EncKey, ctx.AES4Strings, ctx.E.R); err != nil {
 				return nil, err
 			}
 		}
@@ -1970,8 +2004,11 @@ func decodeObjectStreams(ctx *Context) error {
 
 		// Parse object stream from file.
 		o, err := ParseObject(ctx, *entry.Offset, objectNumber, *entry.Generation)
-		if err != nil || o == nil {
+		if err != nil {
 			return errors.New("pdfcpu: decodeObjectStreams: corrupt object stream")
+		}
+		if o == nil {
+			continue
 		}
 
 		// Ensure StreamDict
