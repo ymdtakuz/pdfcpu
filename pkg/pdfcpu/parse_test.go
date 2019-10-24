@@ -86,9 +86,15 @@ func Test_parseNumericOrIndRef(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "complex IndirectRef",
+			name:    "invalid IndirectRef int overflow",
 			args:    args{line: "18446744072028749913 0 R "},
-			want:    *NewIndirectRef(0, 0),
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "invalid IndirectRef float",
+			args:    args{line: "0.1 0 R "},
+			want:    nil,
 			wantErr: false,
 		},
 	}
