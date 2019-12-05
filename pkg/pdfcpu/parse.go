@@ -317,12 +317,10 @@ func parseArray(line *string) (*Array, error) {
 		if err != nil {
 			return nil, err
 		}
-		if obj == nil {
-			continue
+		if obj != nil {
+			log.Parse.Printf("ParseArray: new array obj=%v\n", obj)
+			a = append(a, obj)
 		}
-		log.Parse.Printf("ParseArray: new array obj=%v\n", obj)
-		a = append(a, obj)
-
 		// we are positioned on the char behind the last parsed array entry.
 		if len(l) == 0 {
 			return nil, errArrayNotTerminated
