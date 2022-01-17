@@ -130,6 +130,9 @@ type Configuration struct {
 
 	// Chosen units for outputting paper sizes.
 	Units DisplayUnit
+
+	// Max depth of recursive operation.
+	MaxDepth int
 }
 
 // NewDefaultConfiguration returns the default pdfcpu configuration.
@@ -146,6 +149,7 @@ func NewDefaultConfiguration() *Configuration {
 		EncryptUsingAES:   true,
 		EncryptKeyLength:  256,
 		Permissions:       PermissionsNone,
+		MaxDepth:          64,
 	}
 }
 

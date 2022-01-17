@@ -519,6 +519,14 @@ func parseResourcesDict(ctx *Context, pageDict Dict, pageNumber, pageObjNumber i
 
 	log.Optimize.Printf("parseResourcesDict begin page: %d, object:%d\n", pageNumber+1, pageObjNumber)
 
+	ctx.depth = ctx.depth + 1
+	if ctx.depth > ctx.Configuration.MaxDepth {
+		return errors.Errorf(
+			"the number of recursive operation has exceeded the upper limit, page:%d, object:%d",
+			pageNumber+1, pageObjNumber,
+		)
+	}
+
 	// Get resources dict for this page.
 	d, err := resourcesDictForPageDict(ctx.XRefTable, pageDict, pageObjNumber)
 	if err != nil {
@@ -600,6 +608,7 @@ func parsePagesDict(ctx *Context, pagesDict Dict, pageNumber int) (int, error) {
 		if err != nil {
 			return 0, err
 		}
+		ctx.depth = 0
 
 		pageNumber++
 	}

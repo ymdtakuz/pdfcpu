@@ -35,6 +35,7 @@ type Context struct {
 	Write        *WriteContext
 	writingPages bool // true, when writing page dicts.
 	dest         bool // true when writing a destination within a page.
+	depth        int
 }
 
 // NewContext initializes a new Context.
@@ -52,6 +53,7 @@ func NewContext(rs io.ReadSeeker, conf *Configuration) (*Context, error) {
 		NewWriteContext(conf.Eol),
 		false,
 		false,
+		0,
 	}
 
 	return ctx, nil
