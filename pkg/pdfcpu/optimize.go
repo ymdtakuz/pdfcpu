@@ -449,7 +449,9 @@ func optimizeXObjectResourcesDict(ctx *Context, rDict Dict, pageNumber, pageObjN
 
 		// Process form dict
 		log.Optimize.Printf("optimizeXObjectResourcesDict: parsing form dict obj:%d\n", objNr)
-		parseResourcesDict(ctx, osd.Dict, pageNumber, objNr)
+		if err := parseResourcesDict(ctx, osd.Dict, pageNumber, objNr); err != nil {
+			return err
+		}
 	}
 
 	log.Optimize.Println("optimizeXObjectResourcesDict end")
@@ -517,7 +519,8 @@ func optimizeResources(ctx *Context, resourcesDict Dict, pageNumber, pageObjNumb
 // Process the resources dictionary for given page number and optimize by removing redundant resources.
 func parseResourcesDict(ctx *Context, pageDict Dict, pageNumber, pageObjNumber int) error {
 
-	log.Optimize.Printf("parseResourcesDict begin page: %d, object:%d\n", pageNumber+1, pageObjNumber)
+	log.Optimize.Printf("parseResourcesDict begin page: %d, object:%d, depth:%d\n",
+		pageNumber+1, pageObjNumber, ctx.depth)
 
 	ctx.depth = ctx.depth + 1
 	if ctx.depth > ctx.Configuration.MaxDepth {
